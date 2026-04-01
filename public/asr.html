@@ -84,7 +84,7 @@
                             type: mediaRecorder.mimeType || "audio/webm",
                         });
                         if (!blob.size) {
-                            thrownewError("录音数据为空，请至少录制 1 秒再上传");
+                            throw new Error("录音数据为空，请至少录制 1 秒再上传");
                         }
                         const formData = new FormData();
                         formData.append("audio", blob, recordFilename);
@@ -96,7 +96,7 @@
 
                         if (!response.ok) {
                             const text = await response.text();
-                            thrownewError(text || "请求失败");
+                            throw new Error(text || "请求失败");
                         }
 
                         const data = await response.json();
