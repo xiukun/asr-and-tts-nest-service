@@ -13,7 +13,7 @@ import { join } from 'path';
     isGlobal: true, envFilePath: '.env'
   }),
   ServeStaticModule.forRoot({
-    rootPath: join(__dirname, '..', 'client'),
+    rootPath: join(process.cwd(), 'public'),
   })
   , SpeechModule
   ],
