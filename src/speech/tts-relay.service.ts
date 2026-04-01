@@ -39,7 +39,7 @@ export class TtsRelayService implements OnModuleDestroy {
         this.secretId = configService.get<string>('TENCENT_CLOUD_SECRET_ID') ?? '';
         this.secretKey = configService.get<string>('TENCENT_CLOUD_SECRET_KEY') ?? '';
         this.appId = Number(configService.get<string>('TENCENT_CLOUD_APP_ID') ?? 0);
-        this.voiceType = Number(configService.get<string>('TENCENT_CLOUD_SECRET_ID') ?? 101001);
+        this.voiceType = Number(configService.get<string>('TENCENT_CLOUD_TTS_VOICE_TYPE') ?? 101001);
     }
 
     // 模块销毁时关闭所有会话
@@ -294,7 +294,7 @@ export class TtsRelayService implements OnModuleDestroy {
         if (clientWs.readyState !== WebSocket.OPEN) return;
         clientWs.send(JSON.stringify(payload));
     }
-    
+
     /**
      * 构建腾讯云 TTS WebSocket URL（包含签名认证）
      * 使用 HMAC-SHA1 签名确保请求安全
