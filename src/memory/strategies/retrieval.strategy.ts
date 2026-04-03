@@ -48,16 +48,24 @@ export class RetrievalStrategy {
   ) {
     // 从环境变量读取，默认返回 top 3 条最相关的历史
     this.topK = this.configService.get('MEMORY_MILVUS_TOP_K', 3);
-    // 初始化向量化模型，使用配置中的模型名和 API 信息
+    // 初始化向量化模型，优先使用独立的 embedding 配置，未配置时回退到 OPENAI_*
+    const embeddingBaseUrl = this.configService.get(
+      'EMBEDDING_BASE_URL',
+      this.configService.get('OPENAI_BASE_URL'),
+    );
+    const embeddingApiKey = this.configService.get(
+      'EMBEDDING_API_KEY',
+      this.configService.get('OPENAI_API_KEY'),
+    );
     this.embeddings = new OpenAIEmbeddings({
       modelName: this.configService.get(
         'EMBEDDING_MODEL_NAME',
         'tongyi-embedding-vision-flash-2026-03-06',
       ) as OpenAIEmbeddingModelId,
       configuration: {
-        baseURL: this.configService.get('OPENAI_BASE_URL'),
+        baseURL: embeddingBaseUrl,
       },
-      apiKey: this.configService.get('OPENAI_API_KEY'),
+      apiKey: embeddingApiKey,
     });
   }
 

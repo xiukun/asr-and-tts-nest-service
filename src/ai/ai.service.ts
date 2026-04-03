@@ -28,6 +28,8 @@ import {
   AiTtsStreamEvent,
 } from 'src/common/stream-events';
 import { MemoryOrchestrator } from 'src/memory/memory.orchestrator';
+import { BaseMessage } from '@langchain/core/messages';
+import { getEncoding } from 'js-tiktoken';
 
 @Injectable()
 export class AiService {
@@ -77,6 +79,7 @@ export class AiService {
     sessionId?: string,
   ): AsyncGenerator<string> {
     let fullResponse = '';
+    let usagePromptText = '';
 
     try {
       let stream: AsyncIterable<string>;
@@ -90,12 +93,14 @@ export class AiService {
         );
         // 提取历史消息（排除最后一条当前问题）
         const historyMessages = messages.slice(0, -1);
+        usagePromptText = this.buildMemoryPromptText(historyMessages, query);
         stream = await this.memoryChain.stream({
           history: historyMessages,
           query,
         });
       } else {
         // 分支2: 无 sessionId → 使用无状态链（单次问答）
+        usagePromptText = `请回答以下问题：\n\n${query}`;
         stream = await this.statelessChain.stream({ query });
       }
 
@@ -112,6 +117,11 @@ export class AiService {
           this.eventEmitter.emit(AI_TTS_STREAM_EVENT, event);
         }
         yield chunk;
+      }
+
+      const usagePayload = this.buildUsagePayload(usagePromptText, fullResponse);
+      if (usagePayload) {
+        yield usagePayload;
       }
     } finally {
       // 对话结束后异步保存记忆（不阻塞响应）
@@ -132,5 +142,45 @@ export class AiService {
         this.eventEmitter.emit(AI_TTS_STREAM_EVENT, endEvent);
       }
     }
+  }
+
+  private buildUsagePayload(promptText: string, responseText: string): string {
+    if (!responseText) {
+      return '';
+    }
+
+    try {
+      const enc = getEncoding('cl100k_base');
+      const inputTokens = enc.encode(promptText || '').length;
+      const outputTokens = enc.encode(responseText).length;
+
+      return JSON.stringify({
+        _type: 'usage',
+        inputTokens,
+        outputTokens,
+      });
+    } catch (err) {
+      this.logger.error(`Failed to calculate token usage: ${err.message}`);
+      return '';
+    }
+  }
+
+  private buildMemoryPromptText(messages: BaseMessage[], query: string): string {
+    const promptLines = ['system: 你是一个全能AI助手，能够进行多轮对话并记住上下文。'];
+
+    for (const message of messages) {
+      const role = message.type;
+      if (!role) {
+        continue;
+      }
+      const content =
+        typeof message.content === 'string'
+          ? message.content
+          : JSON.stringify(message.content);
+      promptLines.push(`${role}: ${content}`);
+    }
+
+    promptLines.push(`human: ${query}`);
+    return promptLines.join('\n');
   }
 }

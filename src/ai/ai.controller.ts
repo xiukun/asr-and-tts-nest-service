@@ -38,7 +38,7 @@ export class AiController {
     @Query('query') query: string,
     @Query('ttsSessionId') ttsSessionId?: string,
     @Query('sessionId') sessionId?: string,
-  ): Observable<{ data: string }> {
+  ): Observable<{ data: string; event?: string }> {
     const ttsSid = ttsSessionId?.trim();
     // 如果传入了 TTS 会话 ID，发射开始事件，通知 TTS 服务准备合成
     if (ttsSid) {
@@ -53,6 +53,36 @@ export class AiController {
     // 将 AsyncGenerator 转为 Observable，逐块返回给前端
     return from(
       this.aiService.streamChain(query, ttsSid, sessionId?.trim()),
-    ).pipe(map((chunk) => ({ data: chunk })));
+    ).pipe(
+      map((chunk) => {
+        try {
+          const parsed = JSON.parse(chunk);
+          const keys = parsed ? Object.keys(parsed) : [];
+          const onlyUsageKeys =
+            keys.length > 0 &&
+            keys.every((key) =>
+              ['_type', 'inputTokens', 'outputTokens'].includes(key),
+            );
+          if (
+            (parsed?._type === 'usage' || parsed?._type === undefined) &&
+            Number.isFinite(parsed.inputTokens) &&
+            Number.isFinite(parsed.outputTokens) &&
+            onlyUsageKeys
+          ) {
+            return {
+              event: 'usage',
+              data: JSON.stringify({
+                inputTokens: parsed.inputTokens,
+                outputTokens: parsed.outputTokens,
+              }),
+            };
+          }
+        } catch {
+          // ignore malformed chunk payload
+        }
+
+        return { data: chunk };
+      }),
+    );
   }
 }

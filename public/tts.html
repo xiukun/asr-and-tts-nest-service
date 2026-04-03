@@ -690,13 +690,52 @@
 
           const es = new EventSource(url);
           let aiResult = '';
+          let usageLabel = '';
           activeStream = es;
 
           es.onmessage = (event) => {
-            aiResult += event.data || '';
+            const raw = event.data || '';
+            try {
+              const payload = JSON.parse(raw);
+              const keys = payload ? Object.keys(payload) : [];
+              const onlyUsageKeys =
+                keys.length > 0 &&
+                keys.every((key) =>
+                  ['_type', 'inputTokens', 'outputTokens'].includes(key),
+                );
+              if (
+                (payload?._type === 'usage' || payload?._type === undefined) &&
+                Number.isFinite(payload.inputTokens) &&
+                Number.isFinite(payload.outputTokens) &&
+                onlyUsageKeys
+              ) {
+                usageLabel = `输入: ${payload.inputTokens} · 输出: ${payload.outputTokens}`;
+                return;
+              }
+            } catch {
+              // ignore invalid JSON
+            }
+
+            aiResult += raw;
             activeAssistantContentEl.textContent = aiResult || '（空结果）';
             scrollToBottom();
           };
+
+          es.addEventListener('usage', (event) => {
+            console.log('usage....', event?.data);
+            
+            try {
+              const payload = JSON.parse(event.data || '{}');
+              if (
+                Number.isFinite(payload.inputTokens) &&
+                Number.isFinite(payload.outputTokens)
+              ) {
+                usageLabel = `输入: ${payload.inputTokens} · 输出: ${payload.outputTokens}`;
+              }
+            } catch {
+              // ignore invalid usage payload
+            }
+          });
 
           es.onerror = () => {
             es.close();
@@ -704,7 +743,10 @@
               activeStream = null;
             }
             if (activeAssistantMetaEl) {
-              activeAssistantMetaEl.textContent = 'AI 回复完成 ' + nowTime();
+              const completeLabel = 'AI 回复完成 ' + nowTime();
+              activeAssistantMetaEl.textContent = usageLabel
+                ? completeLabel + ' · ' + usageLabel
+                : completeLabel;
             }
             // 回复完成后刷新会话状态显示（消息数 +1）
             fetchSessionInfo();
