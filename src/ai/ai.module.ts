@@ -1,16 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
-import { ConfigService } from '@nestjs/config';
-import { ChatOpenAI } from '@langchain/openai';
-import { CHAT_MODEL } from 'src/constant';
 import { ToolModule } from 'src/tool/tool.module';
+import { MemoryModule } from 'src/memory/memory.module';
 
 @Module({
   controllers: [AiController],
-  imports:[ToolModule],
-  providers: [AiService]
+  imports: [ToolModule, MemoryModule],
+  providers: [AiService],
 })
-export class AiModule {
-
-}
+export class AiModule {}

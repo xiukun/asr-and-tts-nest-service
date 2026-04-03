@@ -28,6 +28,8 @@
     "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/serve-static": "^5.0.4",
+    "@zilliz/milvus2-sdk-node": "^2.6.12",
+    "ioredis": "^5.10.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "tencentcloud-sdk-nodejs": "^4.1.203",
